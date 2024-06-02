@@ -1,5 +1,5 @@
-import gleam/int
 import gleam/float
+import gleam/int
 import gleam/string
 
 /// A YAML document which can be converted into a string using the `encode`
