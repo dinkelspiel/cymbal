@@ -14,6 +14,6 @@ version: 1.0.0
 "
   |> decode
   |> should.equal(
-    block([#("name", string("Example")), #("version", string("1.0.0"))]),
+    Ok(block([#("name", string("Example")), #("version", string("1.0.0"))])),
   )
 }
