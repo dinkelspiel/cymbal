@@ -1,28 +1,10 @@
-import cymbal.{type Yaml, string}
-import gleam/io
+import cymbal.{string}
+import decode/types.{Colon, Dash, Indent, Key, Newline, Value}
 import gleam/list
 import gleam/result
 import gleam/string
 
-type Token {
-  Dash
-  Colon
-  Newline
-  Key(String)
-  Value(String)
-  Indent(Int)
-}
-
-pub fn decode(value: String) -> Result(Yaml, String) {
-  io.debug(value)
-  io.debug(
-    string.split(value, "\n")
-    |> tokenize_lines,
-  )
-  Ok(string("test"))
-}
-
-fn tokenize_lines(value: List(String)) {
+pub fn tokenize_lines(value: List(String)) {
   value
   |> list.flat_map(tokenize_line)
 }
