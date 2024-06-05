@@ -15,7 +15,7 @@ fn tokenize_line(line: String) {
 
   case string.first(stripped) {
     Ok(value) if value == "-" -> {
-      [Indent(indent), Dash, Key(string.drop_left(stripped, 2)), Newline]
+      [Indent(indent), Dash, Value(string.drop_left(stripped, 2)), Newline]
     }
     Ok(_) ->
       case string.contains(stripped, ": ") {
@@ -40,7 +40,7 @@ fn tokenize_line(line: String) {
             True -> [
               Indent(indent),
               Key(
-                string.split(stripped, ": ")
+                string.split(stripped, ":")
                 |> list.first
                 |> result.unwrap(""),
               ),

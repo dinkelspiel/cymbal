@@ -1,5 +1,9 @@
 import cymbal.{decode}
+import cymbal/decode/tokenizer.{tokenize_lines}
+import cymbal/decode/types.{Colon, Dash, Indent, Key, Newline, Value}
 import cymbal/yaml.{array, block, string}
+import gleam/io
+import gleam/string
 import gleeunit
 import gleeunit/should
 
@@ -43,4 +47,72 @@ sequence:
       ]),
     ),
   )
+}
+
+pub fn tokenizer_test() {
+  "name: Example
+version: 1.0.0
+map:
+  key1: value1
+  key2: value2
+  nested_map:
+    nested_key1: nested_value1
+    nested_key2: nested_value2
+sequence:
+  - value 1
+  - value 2"
+  |> string.split("\n")
+  |> tokenize_lines
+  |> should.equal([
+    Indent(0),
+    Key("name"),
+    Colon,
+    Value("Example"),
+    Newline,
+    Indent(0),
+    Key("version"),
+    Colon,
+    Value("1.0.0"),
+    Newline,
+    Indent(0),
+    Key("map"),
+    Colon,
+    Newline,
+    Indent(2),
+    Key("key1"),
+    Colon,
+    Value("value1"),
+    Newline,
+    Indent(2),
+    Key("key2"),
+    Colon,
+    Value("value2"),
+    Newline,
+    Indent(2),
+    Key("nested_map"),
+    Colon,
+    Newline,
+    Indent(4),
+    Key("nested_key1"),
+    Colon,
+    Value("nested_value1"),
+    Newline,
+    Indent(4),
+    Key("nested_key2"),
+    Colon,
+    Value("nested_value2"),
+    Newline,
+    Indent(0),
+    Key("sequence"),
+    Colon,
+    Newline,
+    Indent(2),
+    Dash,
+    Value("value 1"),
+    Newline,
+    Indent(2),
+    Dash,
+    Value("value 2"),
+    Newline,
+  ])
 }
