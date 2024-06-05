@@ -1,5 +1,5 @@
-import cymbal.{type Yaml}
-import decode/types.{type Token, Colon, Dash, Indent, Key, Newline, Value}
+import cymbal/decode/types.{type Token, Colon, Dash, Indent, Key, Newline, Value}
+import cymbal/yaml.{type Yaml}
 import gleam/float
 import gleam/int
 import gleam/io

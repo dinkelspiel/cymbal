@@ -1,5 +1,5 @@
-import cymbal.{string}
-import decode/types.{Colon, Dash, Indent, Key, Newline, Value}
+import cymbal/decode/types.{Colon, Dash, Indent, Key, Newline, Value}
+import cymbal/yaml.{string}
 import gleam/list
 import gleam/result
 import gleam/string

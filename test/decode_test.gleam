@@ -1,5 +1,5 @@
-import cymbal.{array, block, string}
-import decode.{decode}
+import cymbal.{decode}
+import cymbal/yaml.{array, block, string}
 import gleeunit
 import gleeunit/should
 
