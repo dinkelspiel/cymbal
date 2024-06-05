@@ -1,4 +1,6 @@
-import cymbal/decode/types.{Colon, Dash, Indent, Key, Newline, Value}
+import cymbal/decode/types.{
+  Colon, Dash, Indent, Key, Newline, Pipe, RightArrow, Value,
+}
 import cymbal/yaml.{string}
 import gleam/list
 import gleam/result
@@ -27,12 +29,22 @@ fn tokenize_line(line: String) {
             |> result.unwrap(""),
           ),
           Colon,
-          Value(
+          case
             string.split(stripped, ": ")
             |> list.rest
             |> result.unwrap([])
-            |> string.join(": "),
-          ),
+            |> string.join(": ")
+          {
+            ">" -> RightArrow
+            "|" -> Pipe
+            _ ->
+              Value(
+                string.split(stripped, ": ")
+                |> list.rest
+                |> result.unwrap([])
+                |> string.join(": "),
+              )
+          },
           Newline,
         ]
         False ->
@@ -47,8 +59,7 @@ fn tokenize_line(line: String) {
               Colon,
               Newline,
             ]
-            False ->
-              panic as string.append("Tokenizer unimplemented for ", line)
+            False -> [Indent(indent), Value(stripped), Newline]
           }
       }
 

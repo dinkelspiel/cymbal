@@ -5,4 +5,6 @@ pub type Token {
   Key(String)
   Value(String)
   Indent(Int)
+  Pipe
+  RightArrow
 }

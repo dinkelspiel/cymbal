@@ -1,8 +1,9 @@
 import cymbal.{decode}
 import cymbal/decode/tokenizer.{tokenize_lines}
-import cymbal/decode/types.{Colon, Dash, Indent, Key, Newline, Value}
+import cymbal/decode/types.{
+  Colon, Dash, Indent, Key, Newline, Pipe, RightArrow, Value,
+}
 import cymbal/yaml.{array, block, string}
-import gleam/io
 import gleam/string
 import gleeunit
 import gleeunit/should
@@ -49,7 +50,7 @@ sequence:
   )
 }
 
-pub fn tokenizer_test() {
+pub fn tokenizer_basic_test() {
   "name: Example
 version: 1.0.0
 map:
@@ -113,6 +114,49 @@ sequence:
     Indent(2),
     Dash,
     Value("value 2"),
+    Newline,
+  ])
+}
+
+pub fn tokenizer_block_scalar_test() {
+  "folded_description: >
+  This is my description
+  which will not contain
+  any newlines.
+literal_description: |
+  This is my description
+  which will preserve
+  each newline."
+  |> string.split("\n")
+  |> tokenize_lines
+  |> should.equal([
+    Indent(0),
+    Key("folded_description"),
+    Colon,
+    RightArrow,
+    Newline,
+    Indent(2),
+    Value("This is my description"),
+    Newline,
+    Indent(2),
+    Value("which will not contain"),
+    Newline,
+    Indent(2),
+    Value("any newlines."),
+    Newline,
+    Indent(0),
+    Key("literal_description"),
+    Colon,
+    Pipe,
+    Newline,
+    Indent(2),
+    Value("This is my description"),
+    Newline,
+    Indent(2),
+    Value("which will preserve"),
+    Newline,
+    Indent(2),
+    Value("each newline."),
     Newline,
   ])
 }
