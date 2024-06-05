@@ -12,7 +12,8 @@ pub fn main() {
 }
 
 pub fn decode_map_test() {
-  "name: Example
+  "---
+name: Example
 version: 1.0.0
 map:
   key1: value1

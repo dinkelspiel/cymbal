@@ -96,7 +96,15 @@ fn tokenize_line(line: String) {
 
   case string.first(stripped) {
     Ok(value) if value == "-" -> {
-      [Indent(indent), Dash, Value(string.drop_left(stripped, 2)), Newline]
+      case stripped {
+        "---" -> []
+        _ -> [
+          Indent(indent),
+          Dash,
+          Value(string.drop_left(stripped, 2)),
+          Newline,
+        ]
+      }
     }
     Ok(_) ->
       case string.contains(stripped, ": ") {
