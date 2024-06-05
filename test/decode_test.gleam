@@ -12,7 +12,7 @@ pub fn main() {
   gleeunit.main()
 }
 
-pub fn decode_basic_test() {
+pub fn decode_map_test() {
   "name: Example
 version: 1.0.0
 map:
@@ -20,10 +20,7 @@ map:
   key2: value2
   nested_map:
     nested_key1: nested_value1
-    nested_key2: nested_value2
-sequence:
-  - value 1
-  - value 2"
+    nested_key2: nested_value2"
   |> decode
   |> should.equal(
     Ok(
@@ -44,9 +41,18 @@ sequence:
             ),
           ]),
         ),
-        #("sequence", array([string("value 1"), string("value 2")])),
       ]),
     ),
+  )
+}
+
+pub fn decode_sequence_test() {
+  "sequence:
+  - value 1
+  - value 2"
+  |> decode
+  |> should.equal(
+    Ok(block([#("sequence", array([string("value 1"), string("value 2")]))])),
   )
 }
 
