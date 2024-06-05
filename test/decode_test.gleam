@@ -56,6 +56,49 @@ pub fn decode_sequence_test() {
   )
 }
 
+pub fn parse_block_scalar_test() {
+  "---
+folded_description: >
+  This is my description
+  which will not contain
+  any newlines.
+literal_description: |
+  This is my description
+  which will preserve
+  each newline."
+  |> decode
+  |> should.equal(
+    Ok(
+      block([
+        #(
+          "folded_description",
+          string("This is my description which will not contain any newlines."),
+        ),
+        #(
+          "literal_description",
+          string("This is my description\nwhich will preserve\neach newline."),
+        ),
+      ]),
+    ),
+  )
+}
+
+pub fn parse_literal_with_indent_test() {
+  "---
+literal_with_indent: |
+  test:
+    scalar:
+      with: indents"
+  |> decode
+  |> should.equal(
+    Ok(
+      block([
+        #("literal_with_indent", string("test:\n  scalar:\n    with: indents")),
+      ]),
+    ),
+  )
+}
+
 pub fn tokenizer_basic_test() {
   "name: Example
 version: 1.0.0
