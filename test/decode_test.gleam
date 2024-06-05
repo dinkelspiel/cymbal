@@ -1,9 +1,8 @@
 import cymbal.{decode}
-import cymbal/decode/tokenizer.{tokenize_lines}
-import cymbal/decode/types.{
-  Colon, Dash, Indent, Key, Newline, Pipe, RightArrow, Value,
+import cymbal/decode.{
+  Colon, Dash, Indent, Key, Newline, Pipe, RightArrow, Value, tokenize_lines,
 }
-import cymbal/yaml.{array, block, string}
+import cymbal/encode.{array, block, string}
 import gleam/string
 import gleeunit
 import gleeunit/should

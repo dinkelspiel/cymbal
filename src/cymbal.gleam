@@ -1,7 +1,7 @@
-import cymbal/decode/parser.{parse_tokens}
-import cymbal/decode/tokenizer.{tokenize_lines}
-import cymbal/encode.{en}
-import cymbal/yaml.{type Yaml, Array, Block, Bool, Float, Int, String, string}
+import cymbal/decode.{parse_tokens, tokenize_lines}
+import cymbal/encode.{
+  type Yaml, Array, Block, Bool, Float, Int, String, en, string,
+}
 import gleam/string
 
 /// Convert a YAML document into a string.
