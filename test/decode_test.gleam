@@ -2,7 +2,7 @@ import cymbal.{decode}
 import cymbal/decode.{
   Colon, Dash, Indent, Key, Newline, Pipe, RightArrow, Value, tokenize_lines,
 }
-import cymbal/encode.{array, block, string}
+import cymbal/encode.{array, block, bool, float, int, string}
 import gleam/string
 import gleeunit
 import gleeunit/should
@@ -208,4 +208,241 @@ literal_description: |
     Value("each newline."),
     Newline,
   ])
+}
+
+pub fn tokenizer_sequence_map_test() {
+  "- name: Test
+  from: Author
+  nested:
+    nest: nest_value"
+  |> string.split("\n")
+  |> tokenize_lines
+  |> should.equal([
+    Indent(0),
+    Dash,
+    Key("name"),
+    Colon,
+    Value("Test"),
+    Newline,
+    Indent(2),
+    Key("from"),
+    Colon,
+    Value("Author"),
+    Newline,
+    Indent(2),
+    Key("nested"),
+    Colon,
+    Newline,
+    Indent(4),
+    Key("nest"),
+    Colon,
+    Value("nest_value"),
+    Newline,
+  ])
+}
+
+pub fn decode_sequence_map_test() {
+  "- name: Test
+  from: Author
+  nested:
+    nest: nest_value
+- test"
+  |> decode
+  |> should.equal(
+    Ok(
+      array([
+        block([
+          #("name", string("Test")),
+          #("from", string("Author")),
+          #("nested", block([#("nest", string("nest_value"))])),
+        ]),
+        string("test"),
+      ]),
+    ),
+  )
+}
+
+pub fn decode_test_test() {
+  "---
+- name: Spec Example 5.7. Block Scalar Indicators
+  yaml: |
+    literal: |
+      some
+      text
+    folded: >
+      some
+      text
+  dump: |
+    literal: |
+      some
+      text
+    folded: >
+      some text"
+  |> decode
+  |> should.equal(
+    Ok(
+      array([
+        block([
+          #("name", string("Spec Example 5.7. Block Scalar Indicators")),
+          #(
+            "yaml",
+            string("literal: |\n  some\n  text\nfolded: >\n  some\n  text"),
+          ),
+          #(
+            "dump",
+            string("literal: |\n  some\n  text\nfolded: >\n  some text"),
+          ),
+        ]),
+      ]),
+    ),
+  )
+}
+
+pub fn decode_docker_compose_test() {
+  let docker_compose =
+    "services:
+  mysql:
+    image: mysql
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: user
+      MYSQL_PASSWORD: user
+      MYSQL_USER: user
+      MYSQL_DATABASE: user
+    volumes:
+      - mysql:/var/lib/mysql
+  phpmyadmin:
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 8080:80
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_PORT=3306
+      - PMA_HOST=mysql
+      - PMA_USER=user
+      - PMA_PASSWORD=user
+  prod:
+    build:
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    env_file:
+      - './.env'
+  dev:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+    ports:
+      - '3000:3000'
+    volumes:
+      - type: bind
+        source: .
+        target: /usr/src/app
+volumes:
+  mysql: ~
+  dev:"
+
+  docker_compose
+  |> decode
+  |> should.equal(
+    Ok(
+      block([
+        #(
+          "services",
+          block([
+            #(
+              "mysql",
+              block([
+                #("image", string("mysql")),
+                #("restart", string("always")),
+                #("ports", array([string("3306:3306")])),
+                #(
+                  "environment",
+                  block([
+                    #("MYSQL_ROOT_PASSWORD", string("user")),
+                    #("MYSQL_PASSWORD", string("user")),
+                    #("MYSQL_USER", string("user")),
+                    #("MYSQL_DATABASE", string("user")),
+                  ]),
+                ),
+                #("volumes", array([string("mysql:/var/lib/mysql")])),
+              ]),
+            ),
+            #(
+              "phpmyadmin",
+              block([
+                #("image", string("phpmyadmin")),
+                #("restart", string("always")),
+                #("ports", array([string("8080:80")])),
+                #(
+                  "environment",
+                  array([
+                    string("PMA_ARBITRARY=1"),
+                    string("PMA_PORT=3306"),
+                    string("PMA_HOST=mysql"),
+                    string("PMA_USER=user"),
+                    string("PMA_PASSWORD=user"),
+                  ]),
+                ),
+              ]),
+            ),
+            #(
+              "prod",
+              block([
+                #("build", block([#("dockerfile", string("Dockerfile"))])),
+                #("ports", array([string("3000:3000")])),
+                #("env_file", array([string("./.env")])),
+              ]),
+            ),
+            #(
+              "dev",
+              block([
+                #(
+                  "build",
+                  block([
+                    #("context", string(".")),
+                    #("dockerfile", string("./Dockerfile.dev")),
+                  ]),
+                ),
+                #("ports", array([string("3000:3000")])),
+                #(
+                  "volumes",
+                  array([
+                    block([
+                      #("type", string("bind")),
+                      #("source", string(".")),
+                      #("target", string("/usr/src/app")),
+                    ]),
+                  ]),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+        #("volumes", block([#("mysql", string("~")), #("dev", block([]))])),
+      ]),
+    ),
+  )
+}
+
+pub fn decode_types_test() {
+  "---
+boolean_test: true
+float_test: 1.23
+int_test: 123
+string_test: Hello World"
+  |> decode
+  |> should.equal(
+    Ok(
+      block([
+        #("boolean_test", bool(True)),
+        #("float_test", float(1.23)),
+        #("int_test", int(123)),
+        #("string_test", string("Hello World")),
+      ]),
+    ),
+  )
 }

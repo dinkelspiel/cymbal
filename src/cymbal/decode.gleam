@@ -1,4 +1,6 @@
 import cymbal/encode.{type Yaml, array, block, string}
+import gleam/float
+import gleam/int
 import gleam/list.{append}
 import gleam/result
 import gleam/string
@@ -27,12 +29,54 @@ fn tokenize_line(line: String) {
     Ok(value) if value == "-" -> {
       case stripped {
         "---" -> []
-        _ -> [
-          Indent(indent),
-          Dash,
-          Value(string.drop_left(stripped, 2)),
-          Newline,
-        ]
+
+        _ ->
+          case string.contains(stripped, ": ") {
+            True -> [
+              Indent(indent),
+              Dash,
+              Key(
+                string.split(stripped, ": ")
+                |> list.first
+                |> result.unwrap("")
+                |> string.drop_left(2),
+              ),
+              Colon,
+              case
+                string.split(stripped, ": ")
+                |> list.rest
+                |> result.unwrap([])
+                |> string.join(": ")
+              {
+                ">" -> RightArrow
+                "|" -> Pipe
+                _ ->
+                  Value(
+                    string.split(stripped, ": ")
+                    |> list.rest
+                    |> result.unwrap([])
+                    |> string.join(": "),
+                  )
+              },
+              Newline,
+            ]
+            False ->
+              case string.contains(stripped, ":\n") {
+                True -> [
+                  Indent(indent),
+                  Dash,
+                  Value(string.drop_left(stripped, 2)),
+                  Colon,
+                  Newline,
+                ]
+                False -> [
+                  Indent(indent),
+                  Dash,
+                  Value(string.drop_left(stripped, 2)),
+                  Newline,
+                ]
+              }
+          }
       }
     }
     Ok(_) ->
@@ -79,8 +123,7 @@ fn tokenize_line(line: String) {
           }
       }
 
-    Error(_) -> panic as "Error in tokenizer"
-    // _ -> panic as string.append("Tokenizer unimplemented for ", line) 
+    Error(_) -> []
   }
 }
 
@@ -92,7 +135,11 @@ fn count_leading_spaces(line: String) -> Int {
 }
 
 pub fn parse_tokens(tokens: List(Token)) -> Result(Yaml, String) {
-  let #(result, _) = parse_block(tokens, 0)
+  let #(result, _) = case tokens {
+    [Indent(_), Dash, ..] -> parse_array(tokens, 0)
+    _ -> parse_block(tokens, 0)
+  }
+
   Ok(result)
 }
 
@@ -116,7 +163,11 @@ fn parse_block_items(
 
     [Indent(current_indent), Key(key), Colon, Value(value), Newline, ..rest] if current_indent
       == indent ->
-      parse_block_items(rest, indent, append(items, [#(key, string(value))]))
+      parse_block_items(
+        rest,
+        indent,
+        append(items, [#(key, parse_value(value))]),
+      )
 
     [Indent(current_indent), Key(key), Colon, Newline, ..rest] if current_indent
       == indent -> {
@@ -137,7 +188,7 @@ fn parse_block_items(
       parse_block_items(
         new_tokens,
         indent,
-        append(items, [#(key, string(multiline_string))]),
+        append(items, [#(key, parse_value(multiline_string))]),
       )
     }
 
@@ -149,12 +200,16 @@ fn parse_block_items(
       parse_block_items(
         new_tokens,
         indent,
-        append(items, [#(key, string(multiline_string))]),
+        append(items, [#(key, parse_value(multiline_string))]),
       )
     }
 
     [Indent(current_indent), Dash, Value(_), Newline, ..] if current_indent
       == indent -> parse_array(tokens, indent)
+
+    [Indent(current_indent), Dash, Key(_), Colon, Value(_), Newline, ..] if current_indent
+      == indent -> parse_array(tokens, indent)
+
     _ -> #(block(items), tokens)
   }
 }
@@ -229,16 +284,16 @@ fn tokens_to_string_until_newline(
         string.append(current_value, "-"),
         indent,
       )
-    [Colon, Value(value), ..rest] ->
+    [Colon, Newline, ..rest] ->
       tokens_to_string_until_newline(
         rest,
-        string.append(string.append(current_value, ": "), value),
+        string.append(current_value, ":\n"),
         indent,
       )
     [Colon, ..rest] ->
       tokens_to_string_until_newline(
         rest,
-        string.append(current_value, ":"),
+        string.append(current_value, ": "),
         indent,
       )
     [Key(key), ..rest] ->
@@ -253,10 +308,16 @@ fn tokens_to_string_until_newline(
         string.append(current_value, value),
         indent,
       )
+    [Pipe, Newline, ..rest] ->
+      tokens_to_string_until_newline(
+        rest,
+        string.append(current_value, "|\n"),
+        indent,
+      )
     [Pipe, ..rest] ->
       tokens_to_string_until_newline(
         rest,
-        string.append(current_value, "|"),
+        string.append(current_value, "| "),
         indent,
       )
     [RightArrow, ..rest] ->
@@ -289,8 +350,18 @@ fn parse_array_items(
   case tokens {
     [] -> #(array(items), tokens)
 
-    [Indent(_), Dash, Key(_), Colon, Value(_), Newline, ..] -> {
-      panic as "Maps in sequences is not implemented"
+    [
+      Indent(current_indent),
+      Dash,
+      Key(key),
+      Colon,
+      Value(value),
+      Newline,
+      ..rest
+    ] -> {
+      let #(block, new_tokens) =
+        parse_block_items(rest, current_indent + 2, [#(key, parse_value(value))])
+      parse_array_items(new_tokens, current_indent, append(items, [block]))
     }
 
     [Indent(_), Dash, Dash, ..] -> {
@@ -299,8 +370,33 @@ fn parse_array_items(
 
     [Indent(current_indent), Dash, Value(value), Newline, ..rest] if current_indent
       == indent ->
-      parse_array_items(rest, current_indent, append(items, [string(value)]))
+      parse_array_items(
+        rest,
+        current_indent,
+        append(items, [parse_value(value)]),
+      )
 
     _ -> #(array(items), tokens)
+  }
+}
+
+fn parse_value(value: String) -> Yaml {
+  // Add appropriate parsing for other Yaml types (Int, Bool, Float)
+  case float.parse(value) {
+    Ok(float) -> encode.float(float)
+    _ ->
+      case int.parse(value) {
+        Ok(int) -> encode.int(int)
+        _ ->
+          case value == "false" || value == "true" {
+            True -> encode.bool(value == "true")
+            _ ->
+              encode.string(string.replace(
+                string.replace(value, "\"", ""),
+                "'",
+                "",
+              ))
+          }
+      }
   }
 }

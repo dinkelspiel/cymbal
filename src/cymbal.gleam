@@ -15,6 +15,12 @@ pub fn encode(doc: Yaml) -> String {
   en(start, 0, doc) <> "\n"
 }
 
+/// Convert a YAML document into a string without the document start.
+///
+pub fn encode_without_document_start(doc: Yaml) -> String {
+  en("", 0, doc) <> "\n"
+}
+
 /// Convert a string into a YAML document.
 ///
 pub fn decode(value: String) -> Result(Yaml, String) {
