@@ -409,14 +409,30 @@ fn parse_value(value: String) -> Yaml {
       case int.parse(value) {
         Ok(int) -> encode.int(int)
         _ ->
-          case value == "false" || value == "true" {
+          case
+            value == "false"
+            || value == "False"
+            || value == "FALSE"
+            || value == "true"
+            || value == "True"
+            || value == "TRUE"
+          {
             True -> encode.bool(value == "true")
             _ ->
-              encode.string(string.replace(
-                string.replace(value, "\"", ""),
-                "'",
-                "",
-              ))
+              case
+                value == "null"
+                || value == "Null"
+                || value == "NULL"
+                || value == "~"
+              {
+                True -> encode.null()
+                _ ->
+                  encode.string(string.replace(
+                    string.replace(value, "\"", ""),
+                    "'",
+                    "",
+                  ))
+              }
           }
       }
   }

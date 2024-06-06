@@ -1,5 +1,5 @@
 import cymbal
-import cymbal/encode.{array, block, float, int, string}
+import cymbal/encode.{array, block, float, int, null, string}
 import gleeunit
 import gleeunit/should
 
@@ -214,6 +214,16 @@ nested1:
   it5: 5
 it6: 6
 it7: 7
+",
+  )
+}
+
+pub fn encode_null_test() {
+  block([#("key", null())])
+  |> cymbal.encode
+  |> should.equal(
+    "---
+key: null
 ",
   )
 }

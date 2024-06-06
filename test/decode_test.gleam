@@ -2,7 +2,7 @@ import cymbal.{decode}
 import cymbal/decode.{
   Colon, Dash, Indent, Key, Newline, Pipe, RightArrow, Value, tokenize_lines,
 }
-import cymbal/encode.{array, block, bool, float, int, string}
+import cymbal/encode.{array, block, bool, float, int, null, string}
 import gleam/string
 import gleeunit
 import gleeunit/should
@@ -422,7 +422,7 @@ volumes:
             ),
           ]),
         ),
-        #("volumes", block([#("mysql", string("~")), #("dev", block([]))])),
+        #("volumes", block([#("mysql", null()), #("dev", block([]))])),
       ]),
     ),
   )
@@ -477,4 +477,11 @@ nested: # Test Comment
       ]),
     ),
   )
+}
+
+pub fn decode_null_test() {
+  "---
+key: null"
+  |> decode
+  |> should.equal(Ok(block([#("key", null())])))
 }

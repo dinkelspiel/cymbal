@@ -1,6 +1,6 @@
 import cymbal/decode.{parse_tokens, tokenize_lines}
 import cymbal/encode.{
-  type Yaml, Array, Block, Bool, Float, Int, String, en, string,
+  type Yaml, Array, Block, Bool, Float, Int, Null, String, en, string,
 }
 import gleam/string
 
@@ -8,7 +8,7 @@ import gleam/string
 ///
 pub fn encode(doc: Yaml) -> String {
   let start = case doc {
-    Bool(_) | Int(_) | Float(_) | String(_) -> "---\n"
+    Bool(_) | Int(_) | Float(_) | String(_) | Null -> "---\n"
     Array(_) | Block(_) -> "---"
   }
 

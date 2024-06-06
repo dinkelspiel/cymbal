@@ -6,6 +6,7 @@ pub fn en(acc: String, in: Int, doc: Yaml) -> String {
   case doc {
     Bool(True) -> acc <> "true"
     Bool(False) -> acc <> "false"
+    Null -> acc <> "null"
     Int(i) -> acc <> int.to_string(i)
     Float(i) -> acc <> float.to_string(i)
     String(i) -> en_string(acc, i)
@@ -23,7 +24,8 @@ fn en_array(acc: String, in: Int, docs: List(Yaml)) -> String {
         |> string.append("\n")
         |> indent(in)
       let acc = case doc {
-        Bool(_) | Int(_) | Float(_) | String(_) -> en(acc <> "- ", in + 1, doc)
+        Bool(_) | Int(_) | Float(_) | String(_) | Null ->
+          en(acc <> "- ", in + 1, doc)
         Array(_) -> en(acc <> "-", in + 1, doc)
         Block(docs) -> en_block(acc <> "- ", in + 1, False, docs)
       }
@@ -57,7 +59,7 @@ fn en_block(
 
 fn block_child(acc: String, in: Int, doc: Yaml) -> String {
   case doc {
-    Bool(_) | Int(_) | Float(_) | String(_) -> en(acc <> ": ", in, doc)
+    Bool(_) | Int(_) | Float(_) | String(_) | Null -> en(acc <> ": ", in, doc)
     Array(_) -> en(acc <> ":", in, doc)
     Block(i) -> en_block(acc <> ":", in + 1, True, i)
   }
@@ -183,6 +185,7 @@ pub type Yaml {
   String(String)
   Array(List(Yaml))
   Block(List(#(String, Yaml)))
+  Null
 }
 
 /// Create a YAML document from a bool.
@@ -207,6 +210,12 @@ pub fn float(i: Float) -> Yaml {
 ///
 pub fn string(i: String) -> Yaml {
   String(i)
+}
+
+/// Create a YAML document from a null.
+///
+pub fn null() -> Yaml {
+  Null
 }
 
 /// Create a YAML document from a list of YAML documents.
