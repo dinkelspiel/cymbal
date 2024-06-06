@@ -462,3 +462,19 @@ nested:
     ),
   )
 }
+
+pub fn decode_comments_test() {
+  "---
+test: value
+nested: # Test Comment
+  key: value #Comment with no after space"
+  |> decode
+  |> should.equal(
+    Ok(
+      block([
+        #("test", string("value")),
+        #("nested", block([#("key", string("value"))])),
+      ]),
+    ),
+  )
+}

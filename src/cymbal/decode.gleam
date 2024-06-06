@@ -41,7 +41,10 @@ fn get_indent_size(tokens: List(Token)) -> Int {
 }
 
 fn tokenize_line(line: String) {
-  let stripped = string.trim(line)
+  let stripped = case list.first(string.split(string.trim(line), " #")) {
+    Ok(value) -> value
+    Error(_) -> ""
+  }
   let indent = count_leading_spaces(line)
 
   case string.first(stripped) {
