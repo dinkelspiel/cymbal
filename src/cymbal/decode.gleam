@@ -1,7 +1,7 @@
 import cymbal/encode.{type Yaml, array, block, string}
 import gleam/float
 import gleam/int
-import gleam/list.{append}
+import gleam/list.{append, map}
 import gleam/result
 import gleam/string
 
@@ -17,8 +17,27 @@ pub type Token {
 }
 
 pub fn tokenize_lines(value: List(String)) {
-  value
-  |> list.flat_map(tokenize_line)
+  let tokens =
+    value
+    |> list.flat_map(tokenize_line)
+
+  let document_indent_size = get_indent_size(tokens)
+
+  tokens
+  |> map(fn(a) {
+    case a {
+      Indent(indent) -> Indent(indent / document_indent_size)
+      _ -> a
+    }
+  })
+}
+
+fn get_indent_size(tokens: List(Token)) -> Int {
+  case tokens {
+    [Indent(indent), ..] if indent > 0 -> indent
+    [_, ..rest] -> get_indent_size(rest)
+    [] -> 0
+  }
 }
 
 fn tokenize_line(line: String) {
@@ -171,7 +190,7 @@ fn parse_block_items(
 
     [Indent(current_indent), Key(key), Colon, Newline, ..rest] if current_indent
       == indent -> {
-      let #(nested_block, remaining_tokens) = parse_block(rest, indent + 2)
+      let #(nested_block, remaining_tokens) = parse_block(rest, indent + 1)
       parse_block_items(
         remaining_tokens,
         indent,
@@ -183,7 +202,7 @@ fn parse_block_items(
     [Indent(current_indent), Key(key), Colon, RightArrow, Newline, ..rest] if current_indent
       == indent -> {
       let #(multiline_string, new_tokens) =
-        parse_block_scalar(rest, "", current_indent + 2, Fold)
+        parse_block_scalar(rest, "", current_indent + 1, Fold)
 
       parse_block_items(
         new_tokens,
@@ -195,7 +214,7 @@ fn parse_block_items(
     [Indent(current_indent), Key(key), Colon, Pipe, Newline, ..rest] if current_indent
       == indent -> {
       let #(multiline_string, new_tokens) =
-        parse_block_scalar(rest, "", current_indent + 2, Keep)
+        parse_block_scalar(rest, "", current_indent + 1, Keep)
 
       parse_block_items(
         new_tokens,
@@ -334,7 +353,7 @@ fn tokens_to_string_until_newline(
 fn create_spaces(count: Int, acc: String) -> String {
   case count {
     0 -> acc
-    _ -> create_spaces(count - 1, string.append(acc, " "))
+    _ -> create_spaces(count - 1, string.append(acc, "  "))
   }
 }
 
@@ -360,7 +379,7 @@ fn parse_array_items(
       ..rest
     ] -> {
       let #(block, new_tokens) =
-        parse_block_items(rest, current_indent + 2, [#(key, parse_value(value))])
+        parse_block_items(rest, current_indent + 1, [#(key, parse_value(value))])
       parse_array_items(new_tokens, current_indent, append(items, [block]))
     }
 
@@ -381,7 +400,6 @@ fn parse_array_items(
 }
 
 fn parse_value(value: String) -> Yaml {
-  // Add appropriate parsing for other Yaml types (Int, Bool, Float)
   case float.parse(value) {
     Ok(float) -> encode.float(float)
     _ ->
