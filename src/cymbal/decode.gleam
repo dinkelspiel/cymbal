@@ -382,28 +382,35 @@ fn parse_value(value: String) -> Yaml {
             Ok(decimal), True -> encode.int(decimal)
             _, _ ->
               case
-                value == "false"
-                || value == "False"
-                || value == "FALSE"
-                || value == "true"
-                || value == "True"
-                || value == "TRUE"
+                hex_to_decimal(string.drop_left(value, 2)),
+                string.starts_with(value, "0x")
               {
-                True -> encode.bool(value == "true")
-                _ ->
+                Ok(decimal), True -> encode.int(decimal)
+                _, _ ->
                   case
-                    value == "null"
-                    || value == "Null"
-                    || value == "NULL"
-                    || value == "~"
+                    value == "false"
+                    || value == "False"
+                    || value == "FALSE"
+                    || value == "true"
+                    || value == "True"
+                    || value == "TRUE"
                   {
-                    True -> encode.null()
+                    True -> encode.bool(value == "true")
                     _ ->
-                      encode.string(string.replace(
-                        string.replace(value, "\"", ""),
-                        "'",
-                        "",
-                      ))
+                      case
+                        value == "null"
+                        || value == "Null"
+                        || value == "NULL"
+                        || value == "~"
+                      {
+                        True -> encode.null()
+                        _ ->
+                          encode.string(string.replace(
+                            string.replace(value, "\"", ""),
+                            "'",
+                            "",
+                          ))
+                      }
                   }
               }
           }
@@ -411,7 +418,7 @@ fn parse_value(value: String) -> Yaml {
   }
 }
 
-fn octal_digit_to_decimal(octal_char: String) -> Result(Int, String) {
+fn octal_char_to_decimal(octal_char: String) -> Result(Int, String) {
   case octal_char {
     "0" -> Ok(0)
     "1" -> Ok(1)
@@ -430,19 +437,72 @@ fn octal_to_decimal(octal: String) -> Result(Int, String) {
   let length = list.length(octal_chars)
 
   list.index_fold(octal_chars, Ok(0), fn(acc, char, index) {
-    case acc, octal_digit_to_decimal(char) {
-      Ok(acc_value), Ok(digit) -> {
-        let position_value =
-          digit
+    case acc, octal_char_to_decimal(char) {
+      Ok(acc_value), Ok(digit) ->
+        Ok(
+          acc_value
+          + digit
           * float.round(result.unwrap(
             int.power(8, int.to_float(length - 1 - index)),
             1.0,
-          ))
-        Ok(acc_value + position_value)
-      }
+          )),
+        )
 
       Error(e), _ -> Error(e)
       _, Error(e) -> Error(e)
     }
   })
+}
+
+fn hex_to_decimal(hex: String) -> Result(Int, String) {
+  let hex_chars = string.split(hex, "")
+  let length = list.length(hex_chars)
+  let decimal_value =
+    list.index_fold(hex_chars, Ok(0), fn(acc, char, index) {
+      case acc {
+        Ok(value) ->
+          case hex_char_to_value(char) {
+            Ok(char_value) ->
+              Ok(
+                value
+                + char_value
+                * float.round(result.unwrap(
+                  int.power(16, int.to_float(length - 1 - index)),
+                  1.0,
+                )),
+              )
+            Error(e) -> Error(e)
+          }
+        Error(e) -> Error(e)
+      }
+    })
+  decimal_value
+}
+
+fn hex_char_to_value(hex_char: String) -> Result(Int, String) {
+  case hex_char {
+    "0" -> Ok(0)
+    "1" -> Ok(1)
+    "2" -> Ok(2)
+    "3" -> Ok(3)
+    "4" -> Ok(4)
+    "5" -> Ok(5)
+    "6" -> Ok(6)
+    "7" -> Ok(7)
+    "8" -> Ok(8)
+    "9" -> Ok(9)
+    "a" -> Ok(10)
+    "A" -> Ok(10)
+    "b" -> Ok(11)
+    "B" -> Ok(11)
+    "c" -> Ok(12)
+    "C" -> Ok(12)
+    "d" -> Ok(13)
+    "D" -> Ok(13)
+    "e" -> Ok(14)
+    "E" -> Ok(14)
+    "f" -> Ok(15)
+    "F" -> Ok(15)
+    _ -> Error("Invalid hexadecimal character: " <> hex_char)
+  }
 }

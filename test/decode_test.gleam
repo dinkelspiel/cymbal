@@ -433,7 +433,9 @@ pub fn decode_types_test() {
 boolean_test: true
 float_test: 1.23
 int_test: 123
-string_test: Hello World"
+string_test: Hello World
+octal_test: 0o2000
+hex_test: 0x400"
   |> decode
   |> should.equal(
     Ok(
@@ -442,6 +444,8 @@ string_test: Hello World"
         #("float_test", float(1.23)),
         #("int_test", int(123)),
         #("string_test", string("Hello World")),
+        #("octal_test", int(1024)),
+        #("hex_test", int(1024)),
       ]),
     ),
   )
@@ -484,11 +488,4 @@ pub fn decode_null_test() {
 key: null"
   |> decode
   |> should.equal(Ok(block([#("key", null())])))
-}
-
-pub fn decode_octal_test() {
-  "---
-octal: 0o2000"
-  |> decode
-  |> should.equal(Ok(block([#("octal", int(1024))])))
 }
