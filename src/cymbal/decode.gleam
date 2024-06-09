@@ -157,15 +157,21 @@ fn count_leading_spaces(line: String) -> Int {
 }
 
 pub fn parse_tokens(tokens: List(Token)) -> Result(Yaml, String) {
-  let #(result, _) = case tokens {
+  let result = case tokens {
     [Indent(_), Dash, ..] -> parse_array(tokens, 0)
     _ -> parse_block(tokens, 0)
   }
 
-  Ok(result)
+  case result {
+    Ok(#(yaml, _)) -> Ok(yaml)
+    Error(error) -> Error(error)
+  }
 }
 
-fn parse_block(tokens: List(Token), indent: Int) -> #(Yaml, List(Token)) {
+fn parse_block(
+  tokens: List(Token),
+  indent: Int,
+) -> Result(#(Yaml, List(Token)), String) {
   let items = []
   parse_block_items(tokens, indent, items)
 }
@@ -174,14 +180,12 @@ fn parse_block_items(
   tokens: List(Token),
   indent: Int,
   items: List(#(String, Yaml)),
-) -> #(Yaml, List(Token)) {
+) -> Result(#(Yaml, List(Token)), String) {
   case tokens {
-    [] -> #(block(items), tokens)
+    [] -> Ok(#(block(items), tokens))
 
-    [Indent(current_indent), ..] if current_indent < indent -> #(
-      block(items),
-      tokens,
-    )
+    [Indent(current_indent), ..] if current_indent < indent ->
+      Ok(#(block(items), tokens))
 
     [Indent(current_indent), Key(key), Colon, Value(value), Newline, ..rest] if current_indent
       == indent ->
@@ -193,12 +197,15 @@ fn parse_block_items(
 
     [Indent(current_indent), Key(key), Colon, Newline, ..rest] if current_indent
       == indent -> {
-      let #(nested_block, remaining_tokens) = parse_block(rest, indent + 1)
-      parse_block_items(
-        remaining_tokens,
-        indent,
-        list.append(items, [#(key, nested_block)]),
-      )
+      case parse_block(rest, indent + 1) {
+        Ok(#(nested_block, remaining_tokens)) ->
+          parse_block_items(
+            remaining_tokens,
+            indent,
+            list.append(items, [#(key, nested_block)]),
+          )
+        Error(error) -> Error(error)
+      }
     }
 
     // TODO: Make the following two cases into one as only the Fold/Keep changes
@@ -232,7 +239,7 @@ fn parse_block_items(
     [Indent(current_indent), Dash, Key(_), Colon, Value(_), Newline, ..] if current_indent
       == indent -> parse_array(tokens, indent)
 
-    _ -> #(block(items), tokens)
+    _ -> Ok(#(block(items), tokens))
   }
 }
 
@@ -326,7 +333,10 @@ fn create_spaces(count: Int, acc: String) -> String {
   }
 }
 
-fn parse_array(tokens: List(Token), indent: Int) -> #(Yaml, List(Token)) {
+fn parse_array(
+  tokens: List(Token),
+  indent: Int,
+) -> Result(#(Yaml, List(Token)), String) {
   parse_array_items(tokens, indent, [])
 }
 
@@ -334,9 +344,9 @@ fn parse_array_items(
   tokens: List(Token),
   indent: Int,
   items: List(Yaml),
-) -> #(Yaml, List(Token)) {
+) -> Result(#(Yaml, List(Token)), String) {
   case tokens {
-    [] -> #(array(items), tokens)
+    [] -> Ok(#(array(items), tokens))
 
     [
       Indent(current_indent),
@@ -347,14 +357,20 @@ fn parse_array_items(
       Newline,
       ..rest
     ] -> {
-      let #(block, new_tokens) =
+      case
         parse_block_items(rest, current_indent + 1, [#(key, parse_value(value))])
-      parse_array_items(new_tokens, current_indent, list.append(items, [block]))
+      {
+        Ok(#(block, new_tokens)) ->
+          parse_array_items(
+            new_tokens,
+            current_indent,
+            list.append(items, [block]),
+          )
+        Error(error) -> Error(error)
+      }
     }
 
-    [Indent(_), Dash, Dash, ..] -> {
-      panic as "Nested sequences are not implemented"
-    }
+    [Indent(_), Dash, Dash, ..] -> Error("Nested sequences are not implemented")
 
     [Indent(current_indent), Dash, Value(value), Newline, ..rest] if current_indent
       == indent ->
@@ -364,7 +380,7 @@ fn parse_array_items(
         list.append(items, [parse_value(value)]),
       )
 
-    _ -> #(array(items), tokens)
+    _ -> Ok(#(array(items), tokens))
   }
 }
 
