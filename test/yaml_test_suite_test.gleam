@@ -38,12 +38,10 @@ fn evaluate_results(results: List(Bool)) {
     |> list.length
 
   io.debug(
-    string.concat([
-      int.to_string(success_count),
-      " succeeded, ",
-      int.to_string(fail_count),
-      " failed",
-    ]),
+    int.to_string(success_count)
+    <> " succeeded, "
+    <> int.to_string(fail_count)
+    <> " failed",
   )
 }
 
@@ -132,13 +130,11 @@ fn run_test(file: String) -> Bool {
               })
 
               io.debug(
-                string.concat([
-                  "Expected ",
-                  case dump {
-                    String(string) -> string
-                    _ -> panic as "Dump must be string"
-                  },
-                ]),
+                "Expected "
+                <> case dump {
+                  String(string) -> string
+                  _ -> panic as "Dump must be string"
+                },
               )
 
               case
@@ -148,9 +144,8 @@ fn run_test(file: String) -> Bool {
                 }
                 == encoded
               {
-                True -> io.debug(string.concat(["Got      ", encoded]))
-                False ->
-                  io.debug(string.concat(["Got      ", encoded_without_start]))
+                True -> io.debug("Got      " <> encoded)
+                False -> io.debug("Got      " <> encoded_without_start)
               }
 
               io.debug(" ")

@@ -485,3 +485,10 @@ key: null"
   |> decode
   |> should.equal(Ok(block([#("key", null())])))
 }
+
+pub fn decode_octal_test() {
+  "---
+octal: 0o2000"
+  |> decode
+  |> should.equal(Ok(block([#("octal", int(1024))])))
+}

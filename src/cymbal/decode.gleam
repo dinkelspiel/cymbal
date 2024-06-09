@@ -1,7 +1,7 @@
 import cymbal/encode.{type Yaml, array, block, string}
 import gleam/float
 import gleam/int
-import gleam/list.{append, map}
+import gleam/list
 import gleam/result
 import gleam/string
 
@@ -24,7 +24,7 @@ pub fn tokenize_lines(value: List(String)) {
   let document_indent_size = get_indent_size(tokens)
 
   tokens
-  |> map(fn(a) {
+  |> list.map(fn(a) {
     case a {
       Indent(indent) -> Indent(indent / document_indent_size)
       _ -> a
@@ -188,7 +188,7 @@ fn parse_block_items(
       parse_block_items(
         rest,
         indent,
-        append(items, [#(key, parse_value(value))]),
+        list.append(items, [#(key, parse_value(value))]),
       )
 
     [Indent(current_indent), Key(key), Colon, Newline, ..rest] if current_indent
@@ -197,7 +197,7 @@ fn parse_block_items(
       parse_block_items(
         remaining_tokens,
         indent,
-        append(items, [#(key, nested_block)]),
+        list.append(items, [#(key, nested_block)]),
       )
     }
 
@@ -210,7 +210,7 @@ fn parse_block_items(
       parse_block_items(
         new_tokens,
         indent,
-        append(items, [#(key, parse_value(multiline_string))]),
+        list.append(items, [#(key, parse_value(multiline_string))]),
       )
     }
 
@@ -222,7 +222,7 @@ fn parse_block_items(
       parse_block_items(
         new_tokens,
         indent,
-        append(items, [#(key, parse_value(multiline_string))]),
+        list.append(items, [#(key, parse_value(multiline_string))]),
       )
     }
 
@@ -255,13 +255,12 @@ fn parse_block_scalar(
             tokens_to_string_until_newline(tokens, "", indent)
           parse_block_scalar(
             new_tokens,
-            string.append(
-              string.append(value, case value {
-                "" -> ""
-                _ -> " "
-              }),
-              line_as_string,
-            ),
+            value
+              <> case value {
+              "" -> ""
+              _ -> " "
+            }
+              <> line_as_string,
             indent,
             block_type,
           )
@@ -271,13 +270,12 @@ fn parse_block_scalar(
             tokens_to_string_until_newline(tokens, "", indent)
           parse_block_scalar(
             new_tokens,
-            string.append(
-              string.append(value, case value {
-                "" -> ""
-                _ -> "\n"
-              }),
-              line_as_string,
-            ),
+            value
+              <> case value {
+              "" -> ""
+              _ -> "\n"
+            }
+              <> line_as_string,
             indent,
             block_type,
           )
@@ -297,57 +295,25 @@ fn tokens_to_string_until_newline(
     [Indent(current_indent), ..rest] ->
       tokens_to_string_until_newline(
         rest,
-        string.append(current_value, create_spaces(current_indent - indent, "")),
+        current_value <> create_spaces(current_indent - indent, ""),
         indent,
       )
     [Dash, ..rest] ->
-      tokens_to_string_until_newline(
-        rest,
-        string.append(current_value, "-"),
-        indent,
-      )
+      tokens_to_string_until_newline(rest, current_value <> "-", indent)
     [Colon, Newline, ..rest] ->
-      tokens_to_string_until_newline(
-        rest,
-        string.append(current_value, ":\n"),
-        indent,
-      )
+      tokens_to_string_until_newline(rest, current_value <> ":\n", indent)
     [Colon, ..rest] ->
-      tokens_to_string_until_newline(
-        rest,
-        string.append(current_value, ": "),
-        indent,
-      )
+      tokens_to_string_until_newline(rest, current_value <> ": ", indent)
     [Key(key), ..rest] ->
-      tokens_to_string_until_newline(
-        rest,
-        string.append(current_value, key),
-        indent,
-      )
+      tokens_to_string_until_newline(rest, current_value <> key, indent)
     [Value(value), ..rest] ->
-      tokens_to_string_until_newline(
-        rest,
-        string.append(current_value, value),
-        indent,
-      )
+      tokens_to_string_until_newline(rest, current_value <> value, indent)
     [Pipe, Newline, ..rest] ->
-      tokens_to_string_until_newline(
-        rest,
-        string.append(current_value, "|\n"),
-        indent,
-      )
+      tokens_to_string_until_newline(rest, current_value <> "|\n", indent)
     [Pipe, ..rest] ->
-      tokens_to_string_until_newline(
-        rest,
-        string.append(current_value, "| "),
-        indent,
-      )
+      tokens_to_string_until_newline(rest, current_value <> "| ", indent)
     [RightArrow, ..rest] ->
-      tokens_to_string_until_newline(
-        rest,
-        string.append(current_value, ">"),
-        indent,
-      )
+      tokens_to_string_until_newline(rest, current_value <> ">", indent)
     [Newline, ..rest] -> #(current_value, rest)
     [] -> #(current_value, tokens)
   }
@@ -356,7 +322,7 @@ fn tokens_to_string_until_newline(
 fn create_spaces(count: Int, acc: String) -> String {
   case count {
     0 -> acc
-    _ -> create_spaces(count - 1, string.append(acc, "  "))
+    _ -> create_spaces(count - 1, acc <> "  ")
   }
 }
 
@@ -383,7 +349,7 @@ fn parse_array_items(
     ] -> {
       let #(block, new_tokens) =
         parse_block_items(rest, current_indent + 1, [#(key, parse_value(value))])
-      parse_array_items(new_tokens, current_indent, append(items, [block]))
+      parse_array_items(new_tokens, current_indent, list.append(items, [block]))
     }
 
     [Indent(_), Dash, Dash, ..] -> {
@@ -395,7 +361,7 @@ fn parse_array_items(
       parse_array_items(
         rest,
         current_indent,
-        append(items, [parse_value(value)]),
+        list.append(items, [parse_value(value)]),
       )
 
     _ -> #(array(items), tokens)
@@ -410,30 +376,73 @@ fn parse_value(value: String) -> Yaml {
         Ok(int) -> encode.int(int)
         _ ->
           case
-            value == "false"
-            || value == "False"
-            || value == "FALSE"
-            || value == "true"
-            || value == "True"
-            || value == "TRUE"
+            octal_to_decimal(string.drop_left(value, 2)),
+            string.starts_with(value, "0o")
           {
-            True -> encode.bool(value == "true")
-            _ ->
+            Ok(decimal), True -> encode.int(decimal)
+            _, _ ->
               case
-                value == "null"
-                || value == "Null"
-                || value == "NULL"
-                || value == "~"
+                value == "false"
+                || value == "False"
+                || value == "FALSE"
+                || value == "true"
+                || value == "True"
+                || value == "TRUE"
               {
-                True -> encode.null()
+                True -> encode.bool(value == "true")
                 _ ->
-                  encode.string(string.replace(
-                    string.replace(value, "\"", ""),
-                    "'",
-                    "",
-                  ))
+                  case
+                    value == "null"
+                    || value == "Null"
+                    || value == "NULL"
+                    || value == "~"
+                  {
+                    True -> encode.null()
+                    _ ->
+                      encode.string(string.replace(
+                        string.replace(value, "\"", ""),
+                        "'",
+                        "",
+                      ))
+                  }
               }
           }
       }
   }
+}
+
+fn octal_digit_to_decimal(octal_char: String) -> Result(Int, String) {
+  case octal_char {
+    "0" -> Ok(0)
+    "1" -> Ok(1)
+    "2" -> Ok(2)
+    "3" -> Ok(3)
+    "4" -> Ok(4)
+    "5" -> Ok(5)
+    "6" -> Ok(6)
+    "7" -> Ok(7)
+    _ -> Error("Invalid octal digit")
+  }
+}
+
+fn octal_to_decimal(octal: String) -> Result(Int, String) {
+  let octal_chars = string.split(octal, "")
+  let length = list.length(octal_chars)
+
+  list.index_fold(octal_chars, Ok(0), fn(acc, char, index) {
+    case acc, octal_digit_to_decimal(char) {
+      Ok(acc_value), Ok(digit) -> {
+        let position_value =
+          digit
+          * float.round(result.unwrap(
+            int.power(8, int.to_float(length - 1 - index)),
+            1.0,
+          ))
+        Ok(acc_value + position_value)
+      }
+
+      Error(e), _ -> Error(e)
+      _, Error(e) -> Error(e)
+    }
+  })
 }
