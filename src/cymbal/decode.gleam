@@ -16,6 +16,7 @@ pub type Token {
   RightArrow
 }
 
+/// Tokenizes all strings in a given list of string as lines in a yaml document
 pub fn tokenize_lines(value: List(String)) {
   let tokens =
     value
@@ -32,6 +33,7 @@ pub fn tokenize_lines(value: List(String)) {
   })
 }
 
+/// Returns the first indent in a yaml document that isn't 0
 fn get_indent_size(tokens: List(Token)) -> Int {
   case tokens {
     [Indent(indent), ..] if indent > 0 -> indent
@@ -40,6 +42,7 @@ fn get_indent_size(tokens: List(Token)) -> Int {
   }
 }
 
+/// Gets a list of tokens for a given line in a yaml document
 fn tokenize_line(line: String) {
   let stripped = case list.first(string.split(string.trim(line), " #")) {
     Ok(value) -> value
@@ -51,100 +54,11 @@ fn tokenize_line(line: String) {
     Ok(value) if value == "-" -> {
       case stripped {
         "---" -> []
-
-        _ ->
-          case string.contains(stripped, ": ") {
-            True -> [
-              Indent(indent),
-              Dash,
-              Key(
-                string.split(stripped, ": ")
-                |> list.first
-                |> result.unwrap("")
-                |> string.drop_left(2),
-              ),
-              Colon,
-              case
-                string.split(stripped, ": ")
-                |> list.rest
-                |> result.unwrap([])
-                |> string.join(": ")
-              {
-                ">" -> RightArrow
-                "|" -> Pipe
-                _ ->
-                  Value(
-                    string.split(stripped, ": ")
-                    |> list.rest
-                    |> result.unwrap([])
-                    |> string.join(": "),
-                  )
-              },
-              Newline,
-            ]
-            False ->
-              case string.contains(stripped, ":\n") {
-                True -> [
-                  Indent(indent),
-                  Dash,
-                  Value(string.drop_left(stripped, 2)),
-                  Colon,
-                  Newline,
-                ]
-                False -> [
-                  Indent(indent),
-                  Dash,
-                  Value(string.drop_left(stripped, 2)),
-                  Newline,
-                ]
-              }
-          }
+        _ -> tokenize_sequence_item(stripped, indent)
       }
     }
-    Ok(_) ->
-      case string.contains(stripped, ": ") {
-        True -> [
-          Indent(indent),
-          Key(
-            string.split(stripped, ": ")
-            |> list.first
-            |> result.unwrap(""),
-          ),
-          Colon,
-          case
-            string.split(stripped, ": ")
-            |> list.rest
-            |> result.unwrap([])
-            |> string.join(": ")
-          {
-            ">" -> RightArrow
-            "|" -> Pipe
-            _ ->
-              Value(
-                string.split(stripped, ": ")
-                |> list.rest
-                |> result.unwrap([])
-                |> string.join(": "),
-              )
-          },
-          Newline,
-        ]
-        False ->
-          case string.contains(stripped, ":") {
-            True -> [
-              Indent(indent),
-              Key(
-                string.split(stripped, ":")
-                |> list.first
-                |> result.unwrap(""),
-              ),
-              Colon,
-              Newline,
-            ]
-            False -> [Indent(indent), Value(stripped), Newline]
-          }
-      }
 
+    Ok(_) -> tokenize_key_value_pair(stripped, indent)
     Error(_) -> []
   }
 }
@@ -154,6 +68,100 @@ fn count_leading_spaces(line: String) -> Int {
   |> string.split("")
   |> list.take_while(fn(char) { char == " " })
   |> list.length
+}
+
+fn get_tokenized_value_or_block_scalar_indicator(stripped: String) {
+  case
+    string.split(stripped, ": ")
+    |> list.rest
+    |> result.unwrap([])
+    |> string.join(": ")
+  {
+    ">" -> RightArrow
+    "|" -> Pipe
+    _ ->
+      Value(
+        string.split(stripped, ": ")
+        |> list.rest
+        |> result.unwrap([])
+        |> string.join(": "),
+      )
+  }
+}
+
+/// Tokenize a line that contains a dash at the start
+/// 
+/// Includes
+/// - \- value:
+/// - \- value
+fn tokenize_sequence_item(stripped: String, indent: Int) {
+  let tokenized_sequence_item = case string.contains(stripped, ":\n") {
+    True -> [
+      Indent(indent),
+      Dash,
+      Value(string.drop_left(stripped, 2)),
+      Colon,
+      Newline,
+    ]
+    False -> [
+      Indent(indent),
+      Dash,
+      Value(string.drop_left(stripped, 2)),
+      Newline,
+    ]
+  }
+
+  case string.contains(stripped, ": ") {
+    True -> [
+      Indent(indent),
+      Dash,
+      Key(
+        string.split(stripped, ": ")
+        |> list.first
+        |> result.unwrap("")
+        |> string.drop_left(2),
+      ),
+      Colon,
+      get_tokenized_value_or_block_scalar_indicator(stripped),
+      Newline,
+    ]
+    False -> tokenized_sequence_item
+  }
+}
+
+/// Tokenize an entry in a yaml mapping
+/// 
+/// Includes
+/// - key: value
+/// - key:
+fn tokenize_key_value_pair(stripped: String, indent: Int) {
+  case string.contains(stripped, ": ") {
+    True -> [
+      Indent(indent),
+      Key(
+        string.split(stripped, ": ")
+        |> list.first
+        |> result.unwrap(""),
+      ),
+      Colon,
+      get_tokenized_value_or_block_scalar_indicator(stripped),
+      Newline,
+    ]
+    False ->
+      case string.contains(stripped, ":") {
+        True -> [
+          Indent(indent),
+          Key(
+            string.split(stripped, ":")
+            |> list.first
+            |> result.unwrap(""),
+          ),
+          Colon,
+          Newline,
+        ]
+        False -> [Indent(indent), Value(stripped), Newline]
+      }
+  }
 }
 
 pub fn parse_tokens(tokens: List(Token)) -> Result(Yaml, String) {
@@ -255,6 +263,7 @@ fn parse_block_scalar(
   block_type: BlockScalarType,
 ) -> #(String, List(Token)) {
   case tokens {
+    // Check if parsing of the block scalar should continue
     [Indent(current_indent), ..] if current_indent >= indent ->
       case block_type {
         Fold -> {
@@ -289,6 +298,7 @@ fn parse_block_scalar(
         }
       }
 
+    // Stop parsing the block scalar
     _ -> #(value, tokens)
   }
 }
@@ -384,54 +394,68 @@ fn parse_array_items(
   }
 }
 
+/// Entry point to parse value, same as running parse_float
 fn parse_value(value: String) -> Yaml {
+  parse_float(value)
+}
+
+fn parse_float(value: String) {
   case float.parse(value) {
     Ok(float) -> encode.float(float)
-    _ ->
-      case int.parse(value) {
-        Ok(int) -> encode.int(int)
-        _ ->
-          case
-            octal_to_decimal(string.drop_left(value, 2)),
-            string.starts_with(value, "0o")
-          {
-            Ok(decimal), True -> encode.int(decimal)
-            _, _ ->
-              case
-                hex_to_decimal(string.drop_left(value, 2)),
-                string.starts_with(value, "0x")
-              {
-                Ok(decimal), True -> encode.int(decimal)
-                _, _ ->
-                  case
-                    value == "false"
-                    || value == "False"
-                    || value == "FALSE"
-                    || value == "true"
-                    || value == "True"
-                    || value == "TRUE"
-                  {
-                    True -> encode.bool(value == "true")
-                    _ ->
-                      case
-                        value == "null"
-                        || value == "Null"
-                        || value == "NULL"
-                        || value == "~"
-                      {
-                        True -> encode.null()
-                        _ ->
-                          encode.string(string.replace(
-                            string.replace(value, "\"", ""),
-                            "'",
-                            "",
-                          ))
-                      }
-                  }
-              }
-          }
-      }
+    _ -> parse_int(value)
   }
+}
+
+fn parse_int(value: String) {
+  case int.parse(value) {
+    Ok(int) -> encode.int(int)
+    _ -> parse_octal(value)
+  }
+}
+
+fn parse_octal(value: String) {
+  case
+    octal_to_decimal(string.drop_left(value, 2)),
+    string.starts_with(value, "0o")
+  {
+    Ok(decimal), True -> encode.int(decimal)
+    _, _ -> parse_hexadecimal(value)
+  }
+}
+
+fn parse_hexadecimal(value: String) {
+  case
+    hex_to_decimal(string.drop_left(value, 2)),
+    string.starts_with(value, "0x")
+  {
+    Ok(decimal), True -> encode.int(decimal)
+    _, _ -> parse_boolean(value)
+  }
+}
+
+fn parse_boolean(value: String) {
+  case
+    value == "false"
+    || value == "False"
+    || value == "FALSE"
+    || value == "true"
+    || value == "True"
+    || value == "TRUE"
+  {
+    True -> encode.bool(value == "true")
+    _ -> parse_null(value)
+  }
+}
+
+fn parse_null(value: String) {
+  case value == "null" || value == "Null" || value == "NULL" || value == "~" {
+    True -> encode.null()
+    _ -> parse_string(value)
+  }
+}
+
+fn parse_string(value: String) {
+  encode.string(string.replace(string.replace(value, "\"", ""), "'", ""))
 }
 
 fn octal_char_to_decimal(octal_char: String) -> Result(Int, String) {
