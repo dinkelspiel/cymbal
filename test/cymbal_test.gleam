@@ -1,5 +1,4 @@
-import cymbal
-import cymbal/encode.{array, block, float, int, null, string}
+import cymbal.{array, block, float, int, null, string}
 import gleeunit
 import gleeunit/should
 

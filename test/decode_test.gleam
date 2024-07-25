@@ -1,8 +1,7 @@
-import cymbal.{decode}
-import cymbal/decode.{
-  Colon, Dash, Indent, Key, Newline, Pipe, RightArrow, Value, tokenize_lines,
+import cymbal.{
+  Colon, Dash, Indent, Key, Newline, Pipe, RightArrow, Value, array, block, bool,
+  decode, float, int, null, string, tokenize_lines,
 }
-import cymbal/encode.{array, block, bool, float, int, null, string}
 import gleam/string
 import gleeunit
 import gleeunit/should
